@@ -15,20 +15,19 @@ const FlightMode = {
         try {
             console.log("[Flight] Mencoba mengambil data Live Radar asli...");
             
-            // Mengambil data khusus area Indonesia & ASEAN agar API gratis OpenSky tidak error (Tanpa API Key!)
+            // Area Indonesia & ASEAN API Request
             const response = await fetch('https://opensky-network.org/api/states/all?lamin=-15&lomin=90&lamax=15&lomax=140');
             
             if (!response.ok) throw new Error('API OpenSky sedang limit/sibuk');
             
             const data = await response.json();
             
-            if (data && data.states) {
+            if (data && data.states && data.states.length > 0) {
                 this.layer.clearLayers();
                 this.aircrafts.clear();
                 const markersToCluster = [];
 
-                for (let i = 0; i < data.states.length; i++) {
-                    const flight = data.states[i];
+                data.states.forEach(flight => {
                     const lat = flight[6];
                     const lng = flight[5];
 
@@ -47,35 +46,35 @@ const FlightMode = {
                         });
                         markersToCluster.push(marker);
                     }
-                }
+                });
                 
                 // Memasukkan array secara massal ke dalam sistem MarkerCluster
                 this.layer.addLayers(markersToCluster);
                 console.log(`[Flight] Berhasil memuat ${markersToCluster.length} pesawat asli.`);
+            } else {
+                throw new Error("Data pesawat kosong");
             }
         } catch (error) {
-            console.warn("[Flight] OpenSky API menolak request karena rate-limit. Menjalankan radar global simulasi...");
-            // Kalau gagal API, kita sebar 500 pesawat ke seluruh dunia sebagai cadangan!
-            this.generateSimulatedGlobalFlights(500);
+            console.warn("[Flight] API Gagal / Limit. Menjalankan radar global simulasi...");
+            this.generateSimulatedGlobalFlights(50);
         }
     },
 
-    // 🌍 PENGGANTI JIKA INTERNET MATI / API SIBUK
     generateSimulatedGlobalFlights(count) {
         this.layer.clearLayers();
         this.aircrafts.clear();
         const markersToCluster = [];
-
-        const airlines = ['Garuda Indonesia', 'Emirates', 'Qatar Airways', 'Singapore Airlines', 'ANA', 'Cathay Pacific'];
+        const airlines = ['Garuda', 'Emirates', 'Qatar', 'Singapore Air', 'ANA', 'Cathay'];
 
         for (let i = 0; i < count; i++) {
-            const randomLat = (Math.random() * 140) - 70; 
-            const randomLng = (Math.random() * 360) - 180;
+            // Random area Indonesia & sekitarnya untuk simulasi
+            const randomLat = (Math.random() * 20) - 10; 
+            const randomLng = (Math.random() * 40) + 100;
             const randomHeading = Math.floor(Math.random() * 360);
             const randomSpeed = Math.floor(Math.random() * 300) + 200; 
 
             const marker = this.createMarker({
-                id: `SIM-FLIGHT-${i}`,
+                id: `SIM-${i}`,
                 flightNo: `${airlines[Math.floor(Math.random() * airlines.length)]} ${Math.floor(Math.random() * 999)}`,
                 type: 'Boeing 777 / A350',
                 lat: randomLat,
@@ -83,7 +82,7 @@ const FlightMode = {
                 heading: randomHeading,
                 alt: 35000,
                 speed: randomSpeed,
-                origin: 'Global',
+                origin: 'Simulated',
                 dest: 'In Transit'
             });
 
@@ -91,7 +90,6 @@ const FlightMode = {
         }
 
         this.layer.addLayers(markersToCluster);
-        console.log(`[Flight] Berhasil menyebar ${count} pesawat simulasi di seluruh dunia.`);
     },
 
     createMarker(data) {
@@ -104,18 +102,21 @@ const FlightMode = {
 
         const marker = L.marker([data.lat, data.lng], { icon });
         
+        // Memastikan parameter data sesuai dengan format Object Bottom Sheet
         marker.on('click', () => {
-            UI.openBottomSheet({
-                Callsign: data.flightNo,
-                Country: data.origin,
-                Altitude: `${data.alt} ft`,
-                Speed: `${data.speed} kts`,
-                Status: 'In Air',
-                Type: data.type
-            });
+            if (typeof UI !== 'undefined') {
+                UI.openBottomSheet({
+                    "Callsign": data.flightNo,
+                    "Country": data.origin,
+                    "Altitude": `${data.alt} ft`,
+                    "Speed": `${data.speed} kts`,
+                    "Status": 'In Air',
+                    "Aircraft": data.type
+                });
+            }
         });
 
         this.aircrafts.set(data.id, { marker, data });
-        return marker; // Harus di-return agar ditangkap oleh markersToCluster
+        return marker;
     }
 };

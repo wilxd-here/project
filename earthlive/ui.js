@@ -1,101 +1,103 @@
-const FlightMode = {
-    aircrafts: new Map(),
-    layer: null,
-    updateInterval: null,
-    
+const UI = {
     init() {
-        this.layer = MapEngine.getLayer('flight');
-        // Panggil data asli saat pertama kali dibuka
-        this.fetchRealFlights();
+        this.bindModeSelectors();
+        this.bindFAB();
+        this.bindBottomSheet();
         
-        // Update data secara otomatis setiap 30 detik
-        this.updateInterval = setInterval(() => this.fetchRealFlights(), 30000);
+        // Memaksa mode default "flight" saat map pertama kali terbuka
+        window.dispatchEvent(new CustomEvent('xaerisoft:modeChange', { detail: 'flight' }));
     },
-
-    async fetchRealFlights() {
-        try {
-            console.log("[Flight] Fetching real live radar data...");
-            // Mengambil data dari OpenSky Network
-            // Dibatasi untuk area Asia Tenggara & Indonesia agar HP tidak lag me-render 15,000 pesawat sekaligus
-            const response = await fetch('https://opensky-network.org/api/states/all?lamin=-15&lomin=90&lamax=15&lomax=140');
-            
-            if (!response.ok) throw new Error('API Sedang sibuk / Rate limit');
-            
-            const data = await response.json();
-            
-            if (data && data.states) {
-                // Bersihkan pesawat lama sebelum menaruh posisi yang baru
-                this.layer.clearLayers();
-                this.aircrafts.clear();
-
-                // Looping ratusan data pesawat dari API
-                data.states.forEach(flight => {
-                    const id = flight[0];
-                    const callsign = flight[1] ? flight[1].trim() : 'UNKNOWN';
-                    const origin = flight[2];
-                    const lng = flight[5];
-                    const lat = flight[6];
-                    const altMeters = flight[7];
-                    const speedMs = flight[9];
-                    const heading = flight[10] || 0;
-
-                    // Konversi ke standar penerbangan (Feet dan Knots)
-                    const altFeet = altMeters ? Math.round(altMeters * 3.28084) : 0;
-                    const speedKnots = speedMs ? Math.round(speedMs * 1.94384) : 0;
-
-                    // Jika pesawat punya kordinat valid, gambar di peta
-                    if (lat && lng) {
-                        this.createMarker({
-                            id: id,
-                            flightNo: callsign || 'N/A',
-                            type: 'Live Aircraft',
-                            lat: lat,
-                            lng: lng,
-                            heading: heading,
-                            alt: altFeet,
-                            speed: speedKnots,
-                            origin: origin,
-                            dest: 'Live Tracking'
-                        });
-                    }
-                });
-                console.log(`[Flight] Berhasil memuat ${data.states.length} pesawat asli.`);
-            }
-        } catch (error) {
-            console.warn("Gagal mengambil data asli. Server API OpenSky mungkin sedang sibuk. Menggunakan data simulasi...", error);
-            // Fallback: Jika internet mati atau API limit, kembalikan 2 pesawat simulasi
-            this.simulateLiveData();
-        }
-    },
-
-    createMarker(data) {
-        const icon = L.divIcon({
-            html: `<div class="custom-marker" style="transform: rotate(${data.heading}deg); font-size: 24px; color: var(--neon-purple);">✈</div>`,
-            className: 'flight-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-        });
-
-        const marker = L.marker([data.lat, data.lng], { icon });
-        
-        marker.on('click', () => {
-            UI.openBottomSheet({
-                Callsign: data.flightNo,
-                Country: data.origin,
-                Altitude: `${data.alt} ft`,
-                Speed: `${data.speed} kts`,
-                Status: 'In Air',
-                Type: data.type
+    
+    bindModeSelectors() {
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Ubah style tombol aktif
+                modeBtns.forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                
+                // Trigger event untuk didengarkan oleh MapEngine
+                const mode = e.currentTarget.getAttribute('data-mode');
+                window.dispatchEvent(new CustomEvent('xaerisoft:modeChange', { detail: mode }));
             });
         });
-
-        this.aircrafts.set(data.id, { marker, data });
-        marker.addTo(this.layer);
     },
+    
+    bindFAB() {
+        const fabMain = document.getElementById('fab-main');
+        const fabMenu = document.getElementById('fab-menu');
+        
+        if (fabMain && fabMenu) {
+            fabMain.addEventListener('click', () => {
+                fabMenu.classList.toggle('open');
+            });
+        }
 
-    simulateLiveData() {
-        this.layer.clearLayers();
-        this.createMarker({ id: 1, flightNo: 'XA01', type: 'B777', lat: -6.1, lng: 106.8, heading: 45, alt: 35000, speed: 480, origin: 'CGK', dest: 'HND' });
-        this.createMarker({ id: 2, flightNo: 'XA02', type: 'A350', lat: 1.3, lng: 103.8, heading: 120, alt: 32000, speed: 460, origin: 'SIN', dest: 'SYD' });
+        document.querySelectorAll('.fab-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const action = e.currentTarget.getAttribute('data-action');
+                this.executeFabAction(action);
+                fabMenu.classList.remove('open');
+            });
+        });
+    },
+    
+    executeFabAction(action) {
+        switch(action) {
+            case 'style':
+            case 'layers':
+                // Toggle mode gelap ke satelit
+                const nextStyle = MapEngine.currentStyle === 'dark' ? 'satellite' : 'dark';
+                MapEngine.setMapStyle(nextStyle);
+                break;
+            case 'locate':
+                MapEngine.locateUser();
+                break;
+            case 'measure':
+                alert('Fitur pengukuran jarak sedang dalam tahap pengembangan.');
+                break;
+            case 'fullscreen':
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.warn(`Fullscreen error: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+                break;
+        }
+    },
+    
+    bindBottomSheet() {
+        const btnClose = document.getElementById('btn-close-sheet');
+        if (btnClose) {
+            btnClose.addEventListener('click', () => this.closeBottomSheet());
+        }
+    },
+    
+    openBottomSheet(data) {
+        const sheet = document.getElementById('bottom-sheet');
+        const content = document.getElementById('sheet-content');
+        
+        if (!sheet || !content) return;
+        
+        // Loop otomatis semua data menjadi Grid UI
+        let html = '';
+        for (const [key, value] of Object.entries(data)) {
+            html += `
+                <div class="data-card">
+                    <div class="data-label">${key}</div>
+                    <div class="data-value">${value}</div>
+                </div>
+            `;
+        }
+        
+        content.innerHTML = html;
+        sheet.classList.add('open');
+    },
+    
+    closeBottomSheet() {
+        const sheet = document.getElementById('bottom-sheet');
+        if (sheet) sheet.classList.remove('open');
     }
 };

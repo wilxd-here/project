@@ -5,16 +5,12 @@ const WeatherMode = {
     },
 
     setupWeatherLayers() {
-        // Contoh API Cuaca (Rain Radar)
-        // Di environment produksi, URL ini diganti dengan API Premium seperti Windy API / OpenWeatherMap
-        const rainRadarLayer = L.tileLayer('https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=YOUR_API_KEY', {
-            opacity: 0.6,
-            attribution: 'Weather data © OpenWeatherMap'
+        // Menggunakan tile gratis (CyclOSM) sebagai mock radar untuk mendemonstrasikan perpindahan Map Layer berjalan
+        const mockRadarLayer = L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', {
+            opacity: 0.5,
+            attribution: 'Mock Weather Overlay © OpenStreetMap'
         });
 
-        // Menambahkan overlay efek cuaca (Visual)
-        // Di dalam sistem riil, ini memanfaatkan Canvas layer untuk partikel angin (Wind Particles)
-        
-        rainRadarLayer.addTo(this.layerGroup);
+        mockRadarLayer.addTo(this.layerGroup);
     }
 };

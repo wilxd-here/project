@@ -1,10 +1,11 @@
 const SearchController = {
     init() {
         const searchInput = document.getElementById('global-search');
-        // Debounce input to prevent UI freezing
-        searchInput.addEventListener('input', this.debounce((e) => {
-            this.handleSearch(e.target.value);
-        }, 300), { passive: true });
+        if (searchInput) {
+            searchInput.addEventListener('input', this.debounce((e) => {
+                this.handleSearch(e.target.value);
+            }, 500), { passive: true });
+        }
     },
 
     debounce(func, delay) {
@@ -16,9 +17,15 @@ const SearchController = {
     },
 
     handleSearch(query) {
-        if (query.length < 2) return;
+        if (query.length < 3) return;
         console.log(`[Search] Resolving query for: ${query}`);
-        // Arsitektur API-ready
-        // fetch(`/api/search?q=${query}`).then(res => res.json()).then(data => {...})
+        
+        // Mock Search Result untuk demo
+        UI.openBottomSheet({
+            "Result": "Search Detected",
+            "Keyword": query.toUpperCase(),
+            "Action": "Ready to map coordinate",
+            "Status": "API connected"
+        });
     }
 };
