@@ -1,72 +1,171 @@
-/**
- * Xaerisoft Media Compressor
- * Created by WillXD
- */
-
 // ==========================================
-// 1. BACKGROUND ANIMATION (CANVAS PARTICLES)
+// 1. Loading Screen & Init
 // ==========================================
-const canvas = document.getElementById('bg-canvas');
-const ctx = canvas.getContext('2d');
-
-let width, height;
-let particles = [];
-let mouse = { x: null, y: null };
-
-function resize() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-}
-
-window.addEventListener('resize', resize);
-resize();
-
-window.addEventListener('mousemove', (e) => {
-    mouse.x = e.x;
-    mouse.y = e.y;
+window.addEventListener('load', () => {
+    const loader = document.getElementById('loader');
+    setTimeout(() => {
+        loader.style.opacity = '0';
+        setTimeout(() => {
+            loader.style.display = 'none';
+        }, 800);
+    }, 1000);
+    document.getElementById('year').textContent = new Date().getFullYear();
 });
+
+// ==========================================
+// 2. Scroll Progress Bar
+// ==========================================
+window.addEventListener('scroll', () => {
+    const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+    const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    const scrolled = (winScroll / height) * 100;
+    document.getElementById('progress-bar').style.width = scrolled + '%';
+});
+
+// ==========================================
+// 3. Custom Typing Animation
+// ==========================================
+const phrases = ["Welcome", "Nice to meet you", "Enjoy your visit"];
+const typingTextElement = document.getElementById('typing-text');
+let phraseIndex = 0;
+let charIndex = 0;
+let isDeleting = false;
+let typingSpeed = 100;
+
+function typeEffect() {
+    const currentPhrase = phrases[phraseIndex];
+    if (isDeleting) {
+        typingTextElement.textContent = currentPhrase.substring(0, charIndex - 1);
+        charIndex--;
+        typingSpeed = 50; 
+    } else {
+        typingTextElement.textContent = currentPhrase.substring(0, charIndex + 1);
+        charIndex++;
+        typingSpeed = 120; 
+    }
+
+    if (!isDeleting && charIndex === currentPhrase.length) {
+        isDeleting = true;
+        typingSpeed = 2000; 
+    } else if (isDeleting && charIndex === 0) {
+        isDeleting = false;
+        phraseIndex = (phraseIndex + 1) % phrases.length;
+        typingSpeed = 500; 
+    }
+    setTimeout(typeEffect, typingSpeed);
+}
+setTimeout(typeEffect, 2000);
+
+// ==========================================
+// 4. Scroll Reveal
+// ==========================================
+const revealElements = document.querySelectorAll('.reveal');
+const revealOptions = { threshold: 0.15, rootMargin: "0px 0px -50px 0px" };
+const revealOnScroll = new IntersectionObserver(function(entries, observer) {
+    entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('reveal-visible');
+        observer.unobserve(entry.target);
+    });
+}, revealOptions);
+revealElements.forEach(el => revealOnScroll.observe(el));
+
+// ==========================================
+// 5. Music Player Toggle
+// ==========================================
+const musicBtn = document.getElementById('music-btn');
+const bgMusic = document.getElementById('bg-music');
+const iconPlay = document.getElementById('icon-play');
+const iconPause = document.getElementById('icon-pause');
+let isPlaying = false;
+bgMusic.volume = 0.4; 
+
+musicBtn.addEventListener('click', () => {
+    if (isPlaying) {
+        bgMusic.pause();
+        iconPlay.style.display = 'block';
+        iconPause.style.display = 'none';
+        musicBtn.classList.remove('playing');
+    } else {
+        let playPromise = bgMusic.play();
+        if (playPromise !== undefined) {
+            playPromise.then(_ => {
+                iconPlay.style.display = 'none';
+                iconPause.style.display = 'block';
+                musicBtn.classList.add('playing');
+            }).catch(error => {
+                console.log("Audio play blocked:", error);
+            });
+        }
+    }
+    isPlaying = !isPlaying;
+});
+
+// ==========================================
+// 6. Back To Top
+// ==========================================
+const backToTopBtn = document.getElementById('back-to-top');
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 500) {
+        backToTopBtn.classList.add('visible');
+    } else {
+        backToTopBtn.classList.remove('visible');
+    }
+});
+backToTopBtn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// ==========================================
+// 7. Ripple Effect
+// ==========================================
+const rippleButtons = document.querySelectorAll('.ripple');
+rippleButtons.forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        let x = e.clientX - e.target.getBoundingClientRect().left;
+        let y = e.clientY - e.target.getBoundingClientRect().top;
+        let ripples = document.createElement('span');
+        ripples.classList.add('ripple-circle');
+        ripples.style.left = x + 'px';
+        ripples.style.top = y + 'px';
+        this.appendChild(ripples);
+        setTimeout(() => { ripples.remove(); }, 600);
+    });
+});
+
+// ==========================================
+// 8. Particle Engine
+// ==========================================
+const canvas = document.getElementById('particles-canvas');
+const ctx = canvas.getContext('2d');
+let particlesArray = [];
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 class Particle {
     constructor() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
         this.size = Math.random() * 2;
-        this.speedX = Math.random() * 0.5 - 0.25;
-        this.speedY = Math.random() * 0.5 - 0.25;
-        this.baseColor = Math.random() > 0.5 ? '#8B5CF6' : '#FFFFFF';
-        this.opacity = Math.random();
-        this.twinkleSpeed = Math.random() * 0.05 + 0.01;
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.speedY = (Math.random() - 0.5) * 0.5;
+        this.opacity = Math.random() * 0.5 + 0.1;
     }
-
     update() {
         this.x += this.speedX;
         this.y += this.speedY;
-
-        // Wrap around
-        if (this.x < 0) this.x = width;
-        if (this.x > width) this.x = 0;
-        if (this.y < 0) this.y = height;
-        if (this.y > height) this.y = 0;
-
-        // Twinkle
-        this.opacity += this.twinkleSpeed;
-        if (this.opacity > 1 || this.opacity < 0.2) this.twinkleSpeed *= -1;
-
-        // Mouse Parallax
-        if (mouse.x && mouse.y) {
-            let dx = mouse.x - this.x;
-            let dy = mouse.y - this.y;
-            let distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < 150) {
-                this.x -= dx * 0.01;
-                this.y -= dy * 0.01;
-            }
-        }
+        if (this.x < 0) this.x = canvas.width;
+        if (this.x > canvas.width) this.x = 0;
+        if (this.y < 0) this.y = canvas.height;
+        if (this.y > canvas.height) this.y = 0;
     }
-
     draw() {
-        ctx.globalAlpha = this.opacity;
-        ctx.fillStyle = this.baseColor;
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
@@ -74,278 +173,100 @@ class Particle {
 }
 
 function initParticles() {
-    particles = [];
-    const numParticles = Math.min(window.innerWidth / 10, 150); // Optimize for performance
-    for (let i = 0; i < numParticles; i++) {
-        particles.push(new Particle());
+    particlesArray = [];
+    let numberOfParticles = window.innerWidth < 768 ? 50 : 120;
+    for (let i = 0; i < numberOfParticles; i++) {
+        particlesArray.push(new Particle());
     }
 }
 
 function animateParticles() {
-    ctx.clearRect(0, 0, width, height);
-    particles.forEach(p => {
-        p.update();
-        p.draw();
-    });
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < particlesArray.length; i++) {
+        particlesArray[i].update();
+        particlesArray[i].draw();
+    }
     requestAnimationFrame(animateParticles);
 }
 
 initParticles();
 animateParticles();
 
+// ==========================================
+// 9. Live Digital Clock, Date & Location (OpenStreetMap)
+// ==========================================
+let userLocation = "📍 Indonesia"; // Fallback awal
+let isLocationFetched = false;
 
-// ==========================================
-// 2. ROUTING & UI LOGIC
-// ==========================================
-const app = {
-    views: ['home', 'image', 'video'],
-    navigate(viewName) {
-        this.views.forEach(v => {
-            const el = document.getElementById(`view-${v}`);
-            if (v === viewName) {
-                el.classList.remove('hidden');
-                setTimeout(() => el.classList.add('active'), 10);
-            } else {
-                el.classList.remove('active');
-                setTimeout(() => el.classList.add('hidden'), 500); // Wait for fade out
-            }
-        });
-        
-        if (viewName === 'home') {
-            imageCompressor.reset();
-            videoCompressor.reset();
-        }
+// 1. Fungsi untuk mengambil lokasi 1x saat pertama kali web dibuka
+function initLocation() {
+    // Jika browser tidak mendukung Geolocation
+    if (!navigator.geolocation) {
+        isLocationFetched = true;
+        return; 
     }
-};
 
-// Utilities
-function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
-
-function formatTime(seconds) {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-}
-
-// Drag & Drop Setup
-function setupDragAndDrop(zoneId, inputId, callback) {
-    const zone = document.getElementById(zoneId);
-    const input = document.getElementById(inputId);
-
-    zone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        zone.classList.add('dragover');
-    });
-
-    zone.addEventListener('dragleave', () => {
-        zone.classList.remove('dragover');
-    });
-
-    zone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        zone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) {
-            callback(e.dataTransfer.files[0]);
-        }
-    });
-
-    input.addEventListener('change', (e) => {
-        if (e.target.files.length) {
-            callback(e.target.files[0]);
-        }
-    });
-}
-
-
-// ==========================================
-// 3. IMAGE COMPRESSOR (CANVAS API)
-// ==========================================
-const imageCompressor = {
-    file: null,
-    originalDataUrl: null,
-    compressedBlob: null,
-
-    init() {
-        setupDragAndDrop('image-drop-zone', 'image-input', this.handleFile.bind(this));
-        
-        document.getElementById('img-quality').addEventListener('input', (e) => {
-            document.getElementById('img-quality-val').innerText = `${e.target.value}%`;
-        });
-
-        document.getElementById('img-quality').addEventListener('change', (e) => {
-            if (this.file) this.compressImage(e.target.value / 100);
-        });
-
-        document.getElementById('btn-img-reset').addEventListener('click', () => this.reset());
-        document.getElementById('btn-img-download').addEventListener('click', () => this.download());
-    },
-
-    handleFile(file) {
-        if (!file.type.startsWith('image/')) return alert('Please upload an image file.');
-        this.file = file;
-        
-        document.getElementById('image-drop-zone').classList.add('hidden');
-        document.getElementById('image-editor').classList.remove('hidden');
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            this.originalDataUrl = e.target.result;
-            const img = document.getElementById('img-original');
-            img.src = this.originalDataUrl;
-            
-            img.onload = () => {
-                document.getElementById('img-orig-size').innerText = formatBytes(this.file.size);
-                document.getElementById('img-orig-res').innerText = `${img.naturalWidth} x ${img.naturalHeight}`;
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            try {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
                 
-                // Initial compression
-                const quality = document.getElementById('img-quality').value / 100;
-                this.compressImage(quality);
-            };
-        };
-        reader.readAsDataURL(file);
-    },
-
-    compressImage(quality) {
-        const img = document.getElementById('img-original');
-        const cvs = document.createElement('canvas');
-        cvs.width = img.naturalWidth;
-        cvs.height = img.naturalHeight;
-        const ctx = cvs.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-
-        // Convert to webp for better compression, fallback to jpeg
-        const mimeType = this.file.type === 'image/png' && quality === 1 ? 'image/png' : 'image/webp';
-
-        cvs.toBlob((blob) => {
-            this.compressedBlob = blob;
-            const compUrl = URL.createObjectURL(blob);
-            document.getElementById('img-compressed').src = compUrl;
-            
-            document.getElementById('img-comp-size').innerText = formatBytes(blob.size);
-            document.getElementById('img-comp-res').innerText = `${cvs.width} x ${cvs.height}`;
-
-            const savings = ((this.file.size - blob.size) / this.file.size * 100).toFixed(1);
-            const savingsEl = document.getElementById('img-savings');
-            
-            if (savings > 0) {
-                savingsEl.innerText = `-${savings}%`;
-                savingsEl.style.background = 'var(--primary)';
-            } else {
-                savingsEl.innerText = `+${Math.abs(savings)}%`;
-                savingsEl.style.background = '#ef4444'; // red if larger
+                // Fetch API OpenStreetMap Nominatim (Tanpa API Key)
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&accept-language=id`);
+                const data = await response.json();
+                
+                if (data && data.address) {
+                    const city = data.address.city || data.address.regency || data.address.county || data.address.town || "Indonesia";
+                    const state = data.address.state || "";
+                    
+                    if (city !== "Indonesia" && state) {
+                        userLocation = `📍 ${city}, ${state}`;
+                    }
+                }
+            } catch (error) {
+                // Jangan tampilkan error jika fetch gagal, biarkan fallback "📍 Indonesia"
+            } finally {
+                isLocationFetched = true;
             }
+        },
+        (error) => {
+            // Jangan tampilkan peringatan jika user MENOLAK izin lokasi
+            isLocationFetched = true;
+        }
+    );
+}
 
-        }, mimeType, quality);
-    },
+// Jalankan pencarian lokasi
+initLocation();
 
-    download() {
-        if (!this.compressedBlob) return;
-        const url = window.URL.createObjectURL(this.compressedBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        const ext = this.compressedBlob.type.split('/')[1];
-        a.download = `Xaerisoft_Compressed_${Date.now()}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-    },
+// 2. Fungsi update widget secara real-time
+function updateLiveWidget() {
+    const now = new Date();
 
-    reset() {
-        this.file = null;
-        this.originalDataUrl = null;
-        this.compressedBlob = null;
-        document.getElementById('image-input').value = '';
-        document.getElementById('image-drop-zone').classList.remove('hidden');
-        document.getElementById('image-editor').classList.add('hidden');
-        document.getElementById('img-quality').value = 80;
-        document.getElementById('img-quality-val').innerText = '80%';
+    // -- Update Jam (HH:MM:SS WIB) --
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('widget-time').textContent = `🕒 ${hours}:${minutes}:${seconds} WIB`;
+
+    // -- Update Tanggal --
+    const daysIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const monthsIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    
+    const dayName = daysIndo[now.getDay()];
+    const date = now.getDate();
+    const monthName = monthsIndo[now.getMonth()];
+    const year = now.getFullYear();
+    document.getElementById('widget-date').textContent = `📅 ${dayName}, ${date} ${monthName} ${year}`;
+
+    // -- Tampilkan Lokasi --
+    // Akan menampilkan "Mencari lokasi..." sampai proses fetch selesai atau gagal
+    if (isLocationFetched) {
+        document.getElementById('widget-location').textContent = userLocation;
     }
-};
+}
 
-
-// ==========================================
-// 4. VIDEO COMPRESSOR (METADATA & SIMULATION)
-// ==========================================
-const videoCompressor = {
-    file: null,
-    qualityMultipliers: {
-        medium: 0.5,
-        high: 0.7,
-        ultra: 0.9
-    },
-    selectedQuality: 'medium',
-
-    init() {
-        setupDragAndDrop('video-drop-zone', 'video-input', this.handleFile.bind(this));
-        
-        document.querySelectorAll('.btn-quality').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.btn-quality').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                this.selectedQuality = e.target.dataset.q;
-                this.simulateCompression();
-            });
-        });
-
-        document.getElementById('btn-vid-reset').addEventListener('click', () => this.reset());
-    },
-
-    handleFile(file) {
-        if (!file.type.startsWith('video/')) return alert('Please upload a video file.');
-        this.file = file;
-        
-        document.getElementById('video-drop-zone').classList.add('hidden');
-        document.getElementById('video-editor').classList.remove('hidden');
-
-        const video = document.getElementById('vid-preview');
-        const fileURL = URL.createObjectURL(file);
-        video.src = fileURL;
-
-        document.getElementById('vid-orig-size').innerText = formatBytes(file.size);
-
-        video.onloadedmetadata = () => {
-            document.getElementById('vid-duration').innerText = formatTime(video.duration);
-            document.getElementById('vid-res').innerText = `${video.videoWidth} x ${video.videoHeight}`;
-            this.simulateCompression();
-        };
-    },
-
-    simulateCompression() {
-        if (!this.file) return;
-        const multiplier = this.qualityMultipliers[this.selectedQuality];
-        const estimatedSize = this.file.size * multiplier;
-        document.getElementById('vid-comp-size').innerText = formatBytes(estimatedSize);
-    },
-
-    reset() {
-        this.file = null;
-        const video = document.getElementById('vid-preview');
-        video.pause();
-        video.src = "";
-        video.removeAttribute('src'); 
-        video.load();
-        
-        document.getElementById('video-input').value = '';
-        document.getElementById('video-drop-zone').classList.remove('hidden');
-        document.getElementById('video-editor').classList.add('hidden');
-        
-        // Reset quality buttons
-        document.querySelectorAll('.btn-quality').forEach(b => b.classList.remove('active'));
-        document.querySelector('.btn-quality[data-q="medium"]').classList.add('active');
-        this.selectedQuality = 'medium';
-    }
-};
-
-// Initialize Modules
-document.addEventListener('DOMContentLoaded', () => {
-    imageCompressor.init();
-    videoCompressor.init();
-});
+// Jalankan fungsi update setiap 1 detik (1000ms)
+setInterval(updateLiveWidget, 1000);
+updateLiveWidget();
