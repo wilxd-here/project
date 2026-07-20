@@ -57,10 +57,14 @@ function typeEffect() {
 setTimeout(typeEffect, 2000);
 
 // ==========================================
-// 4. Scroll Reveal
+// 4. Scroll Reveal (Versi Diperbaiki)
 // ==========================================
 const revealElements = document.querySelectorAll('.reveal');
-const revealOptions = { threshold: 0.15, rootMargin: "0px 0px -50px 0px" };
+const revealOptions = { 
+    threshold: 0.05, // Batas kecil agar mudah terdeteksi di HP
+    rootMargin: "0px" // Dihilangkan offset negatifnya
+};
+
 const revealOnScroll = new IntersectionObserver(function(entries, observer) {
     entries.forEach(entry => {
         if (!entry.isIntersecting) return;
@@ -68,6 +72,7 @@ const revealOnScroll = new IntersectionObserver(function(entries, observer) {
         observer.unobserve(entry.target);
     });
 }, revealOptions);
+
 revealElements.forEach(el => revealOnScroll.observe(el));
 
 // ==========================================
@@ -248,7 +253,7 @@ function updateLiveWidget() {
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
-    document.getElementById('widget-time').textContent = `🕒 ${hours}:${minutes}:${seconds} WIB`;
+    document.getElementById('widget-time').textContent = `⌚ ${hours}:${minutes}:${seconds} WIB`;
 
     // -- Update Tanggal --
     const daysIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
