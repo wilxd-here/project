@@ -17,17 +17,19 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// ── RESULT RENDER ──
-function showResult(id, url) {
+// ── RESULT RENDER (API URL DIAMANKAN) ──
+function showResult(id, blobUrl) {
   const box = document.getElementById('result-' + id);
   box.innerHTML = `
     <p class="result-label">— Hasil Generate</p>
     <div class="result-img-wrap">
-      <img src="${url}" alt="Generated Image" onerror="imgError('${id}')"/>
+      <!-- Menggunakan Blob URL (lokal), jadi URL API asli tersembunyi sepenuhnya dari Inspect Element -->
+      <img src="${blobUrl}" alt="Generated Image" onerror="imgError('${id}')"/>
     </div>
     <div class="result-actions">
-      <button class="btn-dl" onclick="downloadImg('${url}', '${id}')">⬇ DOWNLOAD</button>
-      <button class="btn-copy" onclick="copyUrl('${url}')">⎘ COPY URL</button>
+      <!-- Fungsi download langsung tembak ke memori lokal -->
+      <button class="btn-dl" onclick="downloadImg('${blobUrl}', '${id}')">⬇ DOWNLOAD</button>
+      <!-- Tombol COPY URL dihapus agar API tidak bocor ke publik -->
     </div>
   `;
   box.classList.add('show');
@@ -52,46 +54,25 @@ function clearError(id) {
 }
 
 // ── DOWNLOAD ──
-async function downloadImg(url, id) {
+function downloadImg(blobUrl, id) {
   try {
-    showToast('Mengunduh gambar...');
-    
-    // Fetch gambar dari API dan ubah menjadi Blob (data mentah)
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Gagal mengambil gambar dari API');
-    
-    const blob = await response.blob();
-    
-    // Buat URL sementara (local) dari blob tersebut
-    const blobUrl = URL.createObjectURL(blob);
-    
-    // Proses download menggunakan URL lokal
     const a = document.createElement('a');
-    a.href = blobUrl;
+    a.href = blobUrl; // Download dari file lokal yang udah di fetch
     a.download = 'tools-' + id + '-' + Date.now() + '.png';
     document.body.appendChild(a);
     a.click();
-    
-    // Hapus elemen dan bersihkan URL memori
     document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-    
+    showToast('Download berhasil!');
   } catch(e) {
-    // Fallback kalau API memblokir CORS
-    showToast('Download gagal: buka URL langsung.');
-    window.open(url, '_blank');
+    showToast('Download gagal.');
   }
 }
 
-// ── COPY URL ──
-function copyUrl(url) {
-  navigator.clipboard.writeText(url).then(() => showToast('URL disalin!')).catch(() => showToast('Gagal menyalin.'));
-}
-
-// ── BUILD URLS & GENERATE ──
+// ── BUILD URLS & GENERATE (FETCH SISTEM) ──
 function encode(s) { return encodeURIComponent(s); }
 
-function generate(id) {
+// Menggunakan Async/Await biar nge-fetch gambar di background
+async function generate(id) {
   clearError(id);
   let url = '';
 
@@ -149,30 +130,44 @@ function generate(id) {
 
   if (!url) return;
 
-  // Loading state
-  const btn = event.currentTarget;
-  btn.classList.add('loading');
-  btn.innerHTML = '<span class="spinner"></span> GENERATING...';
+  // Tangkap event button untuk ngasih efek loading
+  const btn = event ? event.currentTarget : null;
+  if (btn) {
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner"></span> GENERATING...';
+  }
 
-  // Simulate load then show image
-  const img = new Image();
-  img.onload = () => {
-    btn.classList.remove('loading');
-    btn.textContent = '⚡ GENERATE';
-    showResult(id, url);
+  try {
+    // 1. Fetch gambar langsung sebagai Data mentah (Blob) di background
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('API/Network Error');
+    
+    // 2. Ubah data mentah menjadi Blob Image
+    const blob = await response.blob();
+    
+    // 3. Buat URL Sementara/Lokal (Format: blob:http://domainlu.com/xxx-xxx)
+    const blobUrl = URL.createObjectURL(blob);
+
+    if (btn) {
+      btn.classList.remove('loading');
+      btn.textContent = '⚡ GENERATE';
+    }
+
+    // 4. Tampilkan gambar pakai URL lokal. URL API bener-bener gak nyentuh HTML
+    showResult(id, blobUrl);
     showToast('Gambar berhasil dibuat!');
-  };
-  img.onerror = () => {
-    btn.classList.remove('loading');
-    btn.textContent = '⚡ GENERATE';
-    // Still show — some APIs return binary directly
-    showResult(id, url);
-    showToast('Cek hasil di bawah.');
-  };
-  img.src = url + '&_t=' + Date.now();
+  } catch (err) {
+    if (btn) {
+      btn.classList.remove('loading');
+      btn.textContent = '⚡ GENERATE';
+    }
+    // Error biasanya karena API nge-block CORS. Pastikan API lu izinin aksesnya.
+    showError(id, 'Gagal render gambar. Cek koneksi API.');
+    showToast('Gagal memuat.');
+  }
 }
 
-// ── DRAG & DROP UPLOAD ──
+// ── DRAG & DROP UPLOAD (URL DIAMANKAN) ──
 function onDragOver(e, id) {
   e.preventDefault();
   document.getElementById('drop-' + id).classList.add('dragover');
@@ -228,7 +223,7 @@ async function uploadFile(id, file) {
     const data = await res.json();
     if (data.success && data.files && data.files[0] && data.files[0].url) {
       uploadedUrls[id] = data.files[0].url;
-      // Menyembunyikan link API yang terekspos dengan menampilkan pesan status saja
+      // Menyembunyikan link API yang terekspos di bawah foto dengan pesan konfirmasi saja
       previewUrl.textContent = 'Upload Selesai ✔'; 
       showToast('Upload berhasil!');
     } else {
